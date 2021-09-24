@@ -30,4 +30,10 @@ implementation {
 
     components CommandHandlerC;
     Node.CommandHandler -> CommandHandlerC;
+
+    components new TimerMilliC() as timerC;
+    Node.periodicTimer -> timerC;
+
+    components new ListC(neighbor_t, 64) as NeighborListC;
+    Node.neighborList -> NeighborListC;
 }

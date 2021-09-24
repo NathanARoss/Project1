@@ -6,6 +6,7 @@
 import sys
 from TOSSIM import *
 from CommandMsg import *
+import random
 
 class TestSim:
     moteids=[]
@@ -45,16 +46,16 @@ class TestSim:
 
     # Load a topo file and use it.
     def loadTopo(self, topoFile):
-        print 'Creating Topo!'
+        # print 'Creating Topo!'
         # Read topology file.
         topoFile = 'topo/'+topoFile
         f = open(topoFile, "r")
         self.numMote = int(f.readline());
-        print 'Number of Motes', self.numMote
+        # print 'Number of Motes', self.numMote
         for line in f:
             s = line.split()
             if s:
-                print " ", s[0], " ", s[1], " ", s[2];
+                # print " ", s[0], " ", s[1], " ", s[2];
                 self.r.add(int(s[0]), int(s[1]), float(s[2]))
                 if not int(s[0]) in self.moteids:
                     self.moteids=self.moteids+[int(s[0])]
@@ -78,7 +79,7 @@ class TestSim:
                 self.t.getNode(i).addNoiseTraceReading(val)
 
         for i in self.moteids:
-            print "Creating noise model for ",i;
+            # print "Creating noise model for ",i;
             self.t.getNode(i).createNoiseModel()
 
     def bootNode(self, nodeID):
@@ -132,17 +133,33 @@ class TestSim:
 def main():
     s = TestSim();
     s.runTime(10);
-    s.loadTopo("long_line.topo");
+    s.loadTopo("long_ring.topo");
     s.loadNoise("no_noise.txt");
     s.bootAll();
     s.addChannel(s.COMMAND_CHANNEL);
     s.addChannel(s.GENERAL_CHANNEL);
+    s.addChannel(s.NEIGHBOR_CHANNEL);
+    s.addChannel(s.FLOODING_CHANNEL);
 
     s.runTime(20);
     s.ping(1, 2, "Hello, World");
     s.runTime(10);
+
     s.ping(1, 3, "Hi!");
-    s.runTime(20);
+    s.runTime(10);
+
+    for i in range(4):
+        src = 1 + random.randrange(s.numMote)
+        dst = 1 + random.randrange(s.numMote - 1)
+        if dst == src:
+            dst += 1
+
+        s.ping(src, dst, "Sup!");
+        s.runTime(20);
+
+    for node in range(1, s.numMote + 1):
+        s.neighborDMP(node);
+        s.runTime(20);
 
 if __name__ == '__main__':
     main()
