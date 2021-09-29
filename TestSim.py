@@ -133,9 +133,10 @@ class TestSim:
 def main():
     s = TestSim();
     s.runTime(10);
-    s.loadTopo("long_ring.topo");
+    # s.loadTopo("long_ring.topo");
     # s.loadTopo("long_line.topo");
     # s.loadTopo("example.topo");
+    s.loadTopo("project1.topo");
     s.loadNoise("no_noise.txt");
     s.bootAll();
     s.addChannel(s.COMMAND_CHANNEL);
@@ -144,18 +145,18 @@ def main():
     s.addChannel(s.FLOODING_CHANNEL);
     s.runTime(20);
     print ""
-    
-    s.ping(1, 2, "Hello, World");
+
+    s.ping(4, 9, "Hello, World");
     s.runTime(10);
     print ""
 
-    s.ping(1, 3, "Hi!");
-    s.runTime(10);
-    print ""
+    # s.ping(1, 3, "Hi!");
+    # s.runTime(10);
+    # print ""
 
-    s.ping(1, s.numMote, "Sup!");
-    s.runTime(10);
-    print ""
+    # s.ping(1, s.numMote, "Sup!");
+    # s.runTime(10);
+    # print ""
 
     # for i in range(4):
     #     src = 1 + random.randrange(s.numMote)
