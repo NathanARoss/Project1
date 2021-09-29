@@ -14,7 +14,7 @@
 #include "includes/channels.h"
 
 // enable the "overheard" logs during flooding
-#define FLOOD_LOG_VERBOSE (FALSE)
+// #define FLOOD_LOG_VERBOSE
 
 // Constants
 enum{
@@ -104,9 +104,6 @@ implementation{
 
          // Check for neighbors at regular intervals
          call periodicTimer.startPeriodic(NEIGHBOR_DISCOVERY_DELAY);
-
-         send_pack(TOS_NODE_ID, AM_BROADCAST_ADDR, 1, PROTOCOL_PING, ping_seq_num, NULL, 0);
-         ping_seq_num++;
       }else{
          //Retry until successful
          call AMControl.start();
@@ -162,7 +159,7 @@ implementation{
             {
                case PROTOCOL_PING:
                   // dbg(NEIGHBOR_CHANNEL, "Received neighbor discovery packet, responding to node %u\n", src);
-                  send_pack(TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL, PROTOCOL_PINGREPLY, seq, (uint8_t *) packet->payload, sizeof(packet->payload));
+                  send_pack(TOS_NODE_ID, AM_BROADCAST_ADDR, 1, PROTOCOL_PINGREPLY, seq, (uint8_t *) packet->payload, sizeof(packet->payload));
                   break;
 
                case PROTOCOL_PINGREPLY:
@@ -193,6 +190,8 @@ implementation{
          }
          else
          {
+            // This is a flood packet, a msg meant for a specific node
+
             if (TOS_NODE_ID == src)
             {
                // we're the original sender. Ignore this msg
@@ -213,6 +212,7 @@ implementation{
                   case PROTOCOL_PING:
                      if (TTL != 0)
                      {
+                        // Return acknowledgement to sender 
                         dbg(FLOODING_CHANNEL, "Sending PINGREPLY to node %u with seq %u\n", src, ping_seq_num);
 
                         /*
@@ -232,7 +232,8 @@ implementation{
                      break;
 
                   case PROTOCOL_PINGREPLY:
-                     dbg(FLOODING_CHANNEL, "Received PINGREPLY from node %u\n\n", src);
+                     // Received awknowledgement sent from the destination node
+                     dbg(FLOODING_CHANNEL, "Received PINGREPLY from node %u\n", src);
 
                   default:
                      break;
@@ -243,7 +244,7 @@ implementation{
                // We received a packet meant for someone else. Forward the msg to add neighbors with the TTL decremented
                send_pack(src, dest, TTL-1, protocol, seq, (uint8_t *)packet->payload, sizeof(packet->payload));
 
-               #if FLOOD_LOG_VERBOSE
+               #ifdef FLOOD_LOG_VERBOSE
                if (protocol == PROTOCOL_PING)
                {
                   dbg(FLOODING_CHANNEL, "Overheard PING from %u to %u w/ seq %u\n", src, dest, seq);

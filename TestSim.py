@@ -134,28 +134,37 @@ def main():
     s = TestSim();
     s.runTime(10);
     s.loadTopo("long_ring.topo");
+    # s.loadTopo("long_line.topo");
+    # s.loadTopo("example.topo");
     s.loadNoise("no_noise.txt");
     s.bootAll();
     s.addChannel(s.COMMAND_CHANNEL);
     s.addChannel(s.GENERAL_CHANNEL);
     s.addChannel(s.NEIGHBOR_CHANNEL);
     s.addChannel(s.FLOODING_CHANNEL);
-
     s.runTime(20);
+    print ""
+    
     s.ping(1, 2, "Hello, World");
     s.runTime(10);
+    print ""
 
     s.ping(1, 3, "Hi!");
     s.runTime(10);
+    print ""
 
-    for i in range(4):
-        src = 1 + random.randrange(s.numMote)
-        dst = 1 + random.randrange(s.numMote - 1)
-        if dst == src:
-            dst += 1
+    s.ping(1, s.numMote, "Sup!");
+    s.runTime(10);
+    print ""
 
-        s.ping(src, dst, "Sup!");
-        s.runTime(20);
+    # for i in range(4):
+    #     src = 1 + random.randrange(s.numMote)
+    #     dst = 1 + random.randrange(s.numMote - 1)
+    #     if dst == src:
+    #         dst += 1
+
+    #     s.ping(src, dst, "Sup!");
+    #     s.runTime(20);
 
     for node in range(1, s.numMote + 1):
         s.neighborDMP(node);
