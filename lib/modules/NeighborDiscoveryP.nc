@@ -3,7 +3,8 @@
 #include "../../includes/protocol.h"
 #include "../../includes/packet.h"
 
-enum {
+enum
+{
 	/// ping our neighbors once a second to make sure they are still there
 	NEIGHBOR_DISCOVERY_DELAY_MS = 1000,
 
@@ -79,30 +80,33 @@ enum {
 	RELIABILITY_SCORE_FORGET_THRESHOLD = 0x1C,
 };
 
-
-typedef struct {
+typedef struct
+{
 	uint16_t dest;
 	uint16_t reliability;
 } neighbor_t;
 
-module NeighborDiscoveryP{
+module NeighborDiscoveryP
+{
 	// uses interface
 	uses interface Timer<TMilli> as neighborDiscoveryTimer;
 	uses interface Hashmap<uint16_t> as neighborTable;
 	uses interface SimpleSend as Sender;
-	
+
 	provides interface NeighborDiscovery;
 }
 
-implementation{
+implementation
+{
 	uint16_t neighborDiscoverySeqNum = 0;
 
-	void send_pack(uint16_t dest, uint8_t TTL, uint16_t seq);
-	
+	void send_pack(uint16_t src, uint16_t dest, uint8_t TTL, uint8_t protocol, uint16_t seq);
+
 	/*
 	 * Reduce a neighbor's reliability score in anticipation they won't reply
 	 */
-	void ageNeighbor(uint16_t nodeID){
+	void ageNeighbor(uint16_t nodeID)
+	{
 		uint16_t reliability;
 		reliability = call neighborTable.get(nodeID);
 
@@ -114,10 +118,13 @@ implementation{
 		 */
 		reliability = (uint16_t)(((uint32_t)reliability * RELIABILITY_SCORE_DECAY) >> 16);
 
-		if (reliability < RELIABILITY_SCORE_FORGET_THRESHOLD) {
+		if (reliability < RELIABILITY_SCORE_FORGET_THRESHOLD)
+		{
 			// forget nodes that are haven't replied in ages
 			call neighborTable.remove(nodeID);
-		} else {
+		}
+		else
+		{
 			// update reliability score of reasonably reliable neighbors
 			call neighborTable.insert(nodeID, reliability);
 		}
@@ -126,7 +133,8 @@ implementation{
 	/*
 	 * Call ageNeighbor on all known neighbors
 	 */
-	void ageNeighbors() {
+	void ageNeighbors()
+	{
 		uint16_t neighborCount;
 		uint16_t *neighborIDs;
 		uint16_t i = 0;
@@ -134,7 +142,8 @@ implementation{
 		neighborCount = call neighborTable.size();
 		neighborIDs = call neighborTable.getKeys();
 
-		for (i = 0; i < neighborCount; ++i) {
+		for (i = 0; i < neighborCount; ++i)
+		{
 			uint16_t neighborID = neighborIDs[i];
 			ageNeighbor(neighborID);
 		}
@@ -144,10 +153,12 @@ implementation{
 	 * Add to a neighbor's reliability score if they are already known, or add
 	 * them to the list if they are new.
 	 */
-	void rejuvenateNeighbor(uint16_t nodeID){
+	void rejuvenateNeighbor(uint16_t nodeID)
+	{
 		uint16_t reliability;
 
-		if (call neighborTable.contains(nodeID)) {
+		if (call neighborTable.contains(nodeID))
+		{
 			reliability = call neighborTable.get(nodeID);
 
 			// Give this neighbor credit for replying to the ping
@@ -162,29 +173,48 @@ implementation{
 		call neighborTable.insert(nodeID, reliability);
 	}
 
-	uint8_t encodeReliability(uint16_t reliability) {
-		if (reliability > RELIABILITY_SCORE_0_THRESHOLD) {
+	uint8_t encodeReliability(uint16_t reliability)
+	{
+		if (reliability > RELIABILITY_SCORE_0_THRESHOLD)
+		{
 			return 0;
-		} else if (reliability > RELIABILITY_SCORE_1_THRESHOLD) {
+		}
+		else if (reliability > RELIABILITY_SCORE_1_THRESHOLD)
+		{
 			return 1;
-		} else if (reliability > RELIABILITY_SCORE_2_THRESHOLD) {
+		}
+		else if (reliability > RELIABILITY_SCORE_2_THRESHOLD)
+		{
 			return 2;
-		} else if (reliability > RELIABILITY_SCORE_3_THRESHOLD) {
+		}
+		else if (reliability > RELIABILITY_SCORE_3_THRESHOLD)
+		{
 			return 3;
-		} else if (reliability > RELIABILITY_SCORE_4_THRESHOLD) {
+		}
+		else if (reliability > RELIABILITY_SCORE_4_THRESHOLD)
+		{
 			return 4;
-		} else if (reliability > RELIABILITY_SCORE_5_THRESHOLD) {
+		}
+		else if (reliability > RELIABILITY_SCORE_5_THRESHOLD)
+		{
 			return 5;
-		} else if (reliability > RELIABILITY_SCORE_6_THRESHOLD) {
+		}
+		else if (reliability > RELIABILITY_SCORE_6_THRESHOLD)
+		{
 			return 6;
-		} else if (reliability > RELIABILITY_SCORE_7_THRESHOLD) {
+		}
+		else if (reliability > RELIABILITY_SCORE_7_THRESHOLD)
+		{
 			return 7;
-		} else {
+		}
+		else
+		{
 			return ~0;
 		}
 	}
 
-	command LinkState NeighborDiscovery.getOwnLinkstate(){
+	command LinkState NeighborDiscovery.getOwnLinkstate()
+	{
 		// LinkState Advertisement to flood out
 		LinkState lsa;
 		uint16_t neighborCount;
@@ -197,12 +227,13 @@ implementation{
 		neighborCount = call neighborTable.size();
 		neighborIDs = call neighborTable.getKeys();
 
-		for (i = 0; i < neighborCount; ++i) {
+		for (i = 0; i < neighborCount; ++i)
+		{
 			uint16_t neighborID = neighborIDs[i];
-			
+
 			if (TOS_NODE_ID > neighborID)
 			{
-				 /* 				
+				/* 				
 				 * only advertise nodes with a larger node ID so every link
 				 * is mentioned in only a single LSA packet.
 				 */
@@ -213,14 +244,16 @@ implementation{
 			score = encodeReliability(reliability);
 
 			// if a node stops replying for 7 seconds, then don't list it
-			if (score < 8) {
-				if (count >= 8) {
+			if (score < 8)
+			{
+				if (count >= 8)
+				{
 					dbg(NEIGHBOR_CHANNEL, "node has more than 8 live neighbors, so returning only first 8 \n", count);
 					break;
 				}
 
 				lsa.neighborIDs[count] = neighborID;
-				lsa.reliability |= score << (count*3);
+				lsa.reliability |= score << (count * 3);
 				count++;
 			}
 		}
@@ -230,13 +263,15 @@ implementation{
 		return lsa;
 	}
 
-	command void NeighborDiscovery.start(){
+	command void NeighborDiscovery.start()
+	{
 		dbg(NEIGHBOR_CHANNEL, "Starting Neighbor Discovery \n");
 		call neighborTable.reset();
 		call neighborDiscoveryTimer.startPeriodic(NEIGHBOR_DISCOVERY_DELAY_MS);
 	}
 
-	command void NeighborDiscovery.print(){
+	command void NeighborDiscovery.print()
+	{
 		uint16_t neighborCount;
 		uint16_t *neighborIDs;
 		uint16_t i = 0;
@@ -245,7 +280,8 @@ implementation{
 		neighborCount = call neighborTable.size();
 		neighborIDs = call neighborTable.getKeys();
 
-		for (i = 0; i < neighborCount; ++i) {
+		for (i = 0; i < neighborCount; ++i)
+		{
 			uint16_t neighborID = neighborIDs[i];
 
 			uint16_t reliability = call neighborTable.get(neighborID);
@@ -255,21 +291,23 @@ implementation{
 		}
 	}
 
-	event void neighborDiscoveryTimer.fired(){
+	event void neighborDiscoveryTimer.fired()
+	{
 
 		dbg(NEIGHBOR_CHANNEL, "Sending Neighbor Packet\n");
 
-		send_pack(AM_BROADCAST_ADDR, 0, neighborDiscoverySeqNum++);
+		send_pack(TOS_NODE_ID, AM_BROADCAST_ADDR, 0, PROTOCOL_NEIGHBOR_DISCOVERY, neighborDiscoverySeqNum++);
 		ageNeighbors();
 	}
 
-	command message_t* NeighborDiscovery.receive(message_t* myMsg, void* payload, uint8_t len){
-		pack *msg = (pack *) payload;
+	command message_t *NeighborDiscovery.receive(message_t * myMsg, void *payload, uint8_t len)
+	{
+		pack *msg = (pack *)payload;
 		dbg(NEIGHBOR_CHANNEL, "NeighborDiscovery got Packet\n");
 
-		if(msg->dest == AM_BROADCAST_ADDR)
+		if (msg->dest == AM_BROADCAST_ADDR)
 		{
-			send_pack(msg->src, 0, neighborDiscoverySeqNum++);
+			send_pack(TOS_NODE_ID, msg->src, 0, PROTOCOL_NEIGHBOR_DISCOVERY, neighborDiscoverySeqNum++);
 		}
 		if (msg->dest == TOS_NODE_ID)
 		{
@@ -278,21 +316,16 @@ implementation{
 		return myMsg;
 	}
 
+	void send_pack(uint16_t src, uint16_t dest, uint8_t TTL, uint8_t protocol, uint16_t seq)
+	{
+		pack packet;
+		packet.src = src;
+		packet.dest = dest;
+		packet.TTL = TTL;
+		packet.seq = seq;
+		packet.protocol = protocol;
 
-   void send_pack(uint16_t dest, uint8_t TTL, uint16_t seq)
-   {
-      pack packet = {
-         .src = TOS_NODE_ID,
-         .dest = dest,
-         .TTL = TTL,
-         .seq = seq,
-         .protocol = PROTOCOL_NEIGHBOR_DISCOVERY,
-      };
-
-      
-    //   dbg(GENERAL_CHANNEL, "Sending{dest=%u,seq=%u,TTL=%u}\n", dest, seq, TTL);
-	  uint64_t *raw = (uint64_t*)&packet;
-      dbg(GENERAL_CHANNEL, "Sending{0x%016lX}\n", *raw);
-      call Sender.send(packet, AM_BROADCAST_ADDR);
-   }
+		//   dbg(GENERAL_CHANNEL, "Sending{dest=%u,seq=%u,TTL=%u}\n", dest, seq, TTL);
+		call Sender.send(packet, AM_BROADCAST_ADDR);
+	}
 }

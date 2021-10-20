@@ -36,9 +36,7 @@ implementation
 	event message_t *Receive.receive(message_t * msg, void *payload, uint8_t len)
 	{
 		pack *myMsg = (pack *)payload;
-		// dbg(ROUTING_CHANNEL, "Received{dest=%u,src=%u,seq=%u,TTL=%u,protocol=%u}\n", myMsg->dest, myMsg->src, myMsg->seq, myMsg->TTL, myMsg->protocol);
-		uint64_t *raw = (uint64_t*)&msg;
-      	dbg(GENERAL_CHANNEL, "Received{0x%016lX}\n", *raw);
+		dbg(ROUTING_CHANNEL, "Received{dest=%u,src=%u,seq=%u,TTL=%u,protocol=%u}\n", myMsg->dest, myMsg->src, myMsg->seq, myMsg->TTL, myMsg->protocol);
 
 		if (myMsg->dest == TOS_NODE_ID)
 		{

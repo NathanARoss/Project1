@@ -39,7 +39,7 @@ implementation
 	link network_links[MAX_LINKS_IN_NETWORK];
 	uint16_t receivedLinks = 0;
 
-	void send_pack(uint8_t TTL, uint16_t seq, uint8_t * payload, uint8_t length);
+	void send_pack(uint16_t src, uint16_t dest, uint8_t TTL, uint16_t seq, uint8_t protocol, uint8_t * payload, uint8_t length);
 	void Dijkstra();
 
 	command void RoutingTable.start()
@@ -82,7 +82,7 @@ implementation
 
 		// Flood this node's LinkState information across the network.
 		// The whole LSA struct fits in the payload of a single packet
-		send_pack(MAX_TTL, routingTableFloodSeq, (uint8_t *)&lsa, sizeof(lsa));
+		send_pack(TOS_NODE_ID, AM_BROADCAST_ADDR, MAX_TTL, routingTableFloodSeq, PROTOCOL_LINKSTATE, (uint8_t *)&lsa, sizeof(lsa));
 
 		call routingTable.reset();
 
@@ -177,16 +177,14 @@ implementation
 		}
 	}
 
-	void send_pack(uint8_t TTL, uint16_t seq, uint8_t * payload, uint8_t length)
+	void send_pack(uint16_t src, uint16_t dest, uint8_t TTL, uint16_t seq, uint8_t protocol, uint8_t * payload, uint8_t length)
 	{
-		uint64_t *raw;
-		pack packet = {
-			.src = TOS_NODE_ID,
-			.dest = AM_BROADCAST_ADDR,
-			.TTL = TTL,
-			.seq = seq,
-			.protocol = PROTOCOL_LINKSTATE,
-		};
+		pack packet;
+		packet.src = src;
+		packet.dest = dest;
+		packet.TTL = TTL;
+		packet.seq = seq;
+		packet.protocol = protocol;
 
 		if (length > sizeof(packet.payload))
 		{
@@ -201,8 +199,6 @@ implementation
 		}
 
 		// dbg(ROUTING_CHANNEL, "Flooding LSA{seq=%u,TTL=%u}\n", seq, TTL);
-		raw = (uint64_t*)&packet;
-		dbg(GENERAL_CHANNEL, "Sending{0x%016lX}\n", *raw);
 		call Sender.send(packet, AM_BROADCAST_ADDR);
 	}
 

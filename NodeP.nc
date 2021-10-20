@@ -116,14 +116,12 @@ implementation{
 
    void send_pack(uint16_t src, uint16_t dest, uint8_t TTL, uint8_t protocol, uint16_t seq, uint8_t * payload, uint8_t length)
    {
-      uint64_t *raw;
-      pack packet = (pack){
-          .src = src,
-          .dest = dest,
-          .TTL = TTL,
-          .seq = seq,
-          .protocol = protocol,
-      };
+      pack packet;
+      packet.src = src;
+      packet.dest = dest;
+      packet.TTL = TTL;
+      packet.seq = seq;
+      packet.protocol = protocol;
 
       if (length > sizeof(packet.payload))
       {
@@ -138,8 +136,6 @@ implementation{
       }
 
       // dbg(GENERAL_CHANNEL, "Sending{dest=%u,src=%u,seq=%u,TTL=%u,protocol=%u}\n", dest, src, seq, TTL, protocol);
-	   raw = &packet;
-      dbg(GENERAL_CHANNEL, "Sending{0x%016lX}\n", *raw);
       call Forwarding.send(packet, AM_BROADCAST_ADDR);
    }
 }
