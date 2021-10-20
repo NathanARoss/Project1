@@ -74,7 +74,7 @@ implementation{
 
 	// Peek tail
 	command t List.back(){
-		return container[size];
+		return container[size-1];
 	}
 
 	command bool List.isEmpty(){
@@ -90,5 +90,9 @@ implementation{
 
 	command t List.get(uint16_t position){
 		return container[position];
+	}
+
+	command void List.set(uint16_t position, t item){
+		container[position] = item;
 	}
 }

@@ -12,22 +12,30 @@
 #include "includes/packet.h"
 
 configuration NodeC{
+    provides interface Node;
 }
+
 implementation {
     components MainC;
-    components Node;
-    components new AMReceiverC(AM_PACK) as GeneralReceive;
+    components NodeP;
 
-    Node -> MainC.Boot;
+    NodeP -> MainC.Boot;
 
-    Node.Receive -> GeneralReceive;
+    Node = NodeP.Node;
 
     components ActiveMessageC;
-    Node.AMControl -> ActiveMessageC;
-
-    components new SimpleSendC(AM_PACK);
-    Node.Sender -> SimpleSendC;
+    NodeP.AMControl -> ActiveMessageC;
 
     components CommandHandlerC;
-    Node.CommandHandler -> CommandHandlerC;
+    NodeP.CommandHandler -> CommandHandlerC;
+
+	components NeighborDiscoveryC;
+	NodeP.NeighborDiscovery -> NeighborDiscoveryC.NeighborDiscovery;
+
+	components RoutingTableC;
+	NodeP.RoutingTable -> RoutingTableC.RoutingTable;
+
+	components ForwardingC;
+	NodeP.Forwarding -> ForwardingC.Forwarding;
+
 }
