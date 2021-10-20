@@ -81,10 +81,9 @@ implementation{
 
    event void Boot.booted(){
       uint16_t i;
-      flood_pack_t blank_pack = {
-         .src = -1,
-         .seq = -1,
-      };
+      flood_pack_t blank_pack;
+      blank_pack.src = -1;
+      blank_pack.seq = -1;
 
       for (i = 0; i < FLOOD_PACK_CACHE_SIZE; i++)
       {
@@ -144,15 +143,15 @@ implementation{
    event message_t* Receive.receive(message_t* msg, void* payload, uint8_t len){
       if(len==sizeof(pack)){
          pack* packet = (pack*)payload;
-         uint16_t dest = swap_endianness(packet->dest);
-         uint16_t src = swap_endianness(packet->src);
-         uint16_t seq = swap_endianness(packet->seq);
+         uint16_t dest = packet->dest;
+         uint16_t src = packet->src;
+         uint16_t seq = packet->seq;
          uint8_t TTL = packet->TTL;
          uint8_t protocol = packet->protocol;
 
-         // dbg(GENERAL_CHANNEL, "Received{dest=%u,src=%u,seq=%u,TTL=%u,protocol=%u}\n", dest, src, seq, TTL, protocol);
+         dbg(GENERAL_CHANNEL, "Received{dest=%u,src=%u,seq=%u,TTL=%u,protocol=%u}\n", dest, src, seq, TTL, protocol);
          
-         if (dest >= 255) // TODO figure out why nx_uint16_t causes lower byte to be lost
+         if (dest == AM_BROADCAST_ADDR)
          {
             uint16_t list_location;
             switch(protocol)
@@ -167,12 +166,12 @@ implementation{
                   if (list_location == (uint16_t)-1)
                   {
                      // add new neighbor to list
-                     call neighborList.pushback((neighbor_t){
-                        .node_id            = src,
-                        .start_packet       = ping_seq_num,
-                        .most_recent_packet = ping_seq_num,
-                        .packets_rcvd       = 1,
-                     });
+                     neighbor_t new_neighbor;
+                     new_neighbor.node_id            = src;
+                     new_neighbor.start_packet       = ping_seq_num;
+                     new_neighbor.most_recent_packet = ping_seq_num;
+                     new_neighbor.packets_rcvd       = 1;
+                     call neighborList.pushback(new_neighbor);
                   }
                   else
                   {
@@ -287,8 +286,8 @@ implementation{
       {
          neighbor_t temp;
          uint16_t age;
-         uint16_t sent;
-         uint16_t quality;
+         // uint16_t sent;
+         // uint16_t quality;
 
          temp = call neighborList.get(i);
          age = (ping_seq_num - temp.most_recent_packet);
@@ -315,13 +314,12 @@ implementation{
 
    void send_pack(uint16_t src, uint16_t dest, uint8_t TTL, uint8_t protocol, uint16_t seq, uint8_t* payload, uint8_t length)
    {
-      pack packet = {
-         .src = src,
-         .dest = dest,
-         .TTL = TTL,
-         .seq = seq,
-         .protocol = protocol,
-      };
+      pack packet;
+      packet.src = src;
+      packet.dest = dest;
+      packet.TTL = TTL;
+      packet.seq = seq;
+      packet.protocol = protocol;
 
       if (length > sizeof(packet.payload))
       {
@@ -353,12 +351,6 @@ implementation{
       }
 
       return -1;
-   }
-
-   uint16_t swap_endianness(nx_uint16_t val)
-   {
-      uint8_t *bytes = (uint8_t*)&val;
-      return bytes[0] | (bytes[1] << 8);
    }
 
    bool is_duplicate_msg(uint16_t src, uint16_t seq)
@@ -406,10 +398,8 @@ implementation{
 
    void record_msg(uint16_t src, uint16_t seq)
    {
-      recent_flood_packets[flood_pack_write_pos] = (flood_pack_t){
-         .src = src,
-         .seq = seq,
-      };
+      recent_flood_packets[flood_pack_write_pos].src = src;
+      recent_flood_packets[flood_pack_write_pos].seq = seq;
       flood_pack_write_pos = (flood_pack_write_pos + 1) % FLOOD_PACK_CACHE_SIZE;
    }
 }
