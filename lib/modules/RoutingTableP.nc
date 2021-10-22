@@ -284,7 +284,7 @@ implementation
 
 		dbg(ROUTING_CHANNEL, "Node %u Routing Table\n", TOS_NODE_ID);
 		dbg(ROUTING_CHANNEL, "Dest | Next | Cost\n");
-		dbg(ROUTING_CHANNEL, "==================\n");
+		dbg(ROUTING_CHANNEL, "-----+------+-----\n");
 
 		// print nodes in sorted order without sorting them
 		for (i = 0; i <= nodeCount + 1; i++)
