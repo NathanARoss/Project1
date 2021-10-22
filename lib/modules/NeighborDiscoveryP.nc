@@ -88,7 +88,6 @@ typedef struct
 
 module NeighborDiscoveryP
 {
-	// uses interface
 	uses interface Timer<TMilli> as neighborDiscoveryTimer;
 	uses interface Hashmap<uint16_t> as neighborTable;
 	uses interface SimpleSend as Sender;
@@ -100,52 +99,40 @@ implementation
 {
 	uint16_t neighborDiscoverySeqNum = 0;
 
-	void send_pack(uint16_t src, uint16_t dest, uint8_t TTL, uint8_t protocol, uint16_t seq);
+	error_t send_pack(uint16_t src, uint16_t dest, uint8_t TTL, uint8_t protocol, uint16_t seq);
 
 	/*
-	 * Reduce a neighbor's reliability score in anticipation they won't reply
-	 */
-	void ageNeighbor(uint16_t nodeID)
-	{
-		uint16_t reliability;
-		reliability = call neighborTable.get(nodeID);
-
-		/*
-		 * Reduce the neighbor's reliability as if it didn't respond to this
-		 * ping. If the neighbor does awk, then add the missing score back.
-		 *
-		 * reliability *= 0.99, but using an imul then right shift
-		 */
-		reliability = (uint16_t)(((uint32_t)reliability * RELIABILITY_SCORE_DECAY) >> 16);
-
-		if (reliability < RELIABILITY_SCORE_FORGET_THRESHOLD)
-		{
-			// forget nodes that are haven't replied in ages
-			call neighborTable.remove(nodeID);
-		}
-		else
-		{
-			// update reliability score of reasonably reliable neighbors
-			call neighborTable.insert(nodeID, reliability);
-		}
-	}
-
-	/*
-	 * Call ageNeighbor on all known neighbors
+	 * Update the weighted average of reliability for all known neighbors
 	 */
 	void ageNeighbors()
 	{
-		uint16_t neighborCount;
-		uint16_t *neighborIDs;
-		uint16_t i = 0;
-
-		neighborCount = call neighborTable.size();
-		neighborIDs = call neighborTable.getKeys();
+		uint16_t neighborCount = call neighborTable.size();
+		uint16_t *neighborIDs = call neighborTable.getKeys();
+		uint16_t i;
 
 		for (i = 0; i < neighborCount; ++i)
 		{
 			uint16_t neighborID = neighborIDs[i];
-			ageNeighbor(neighborID);
+			uint16_t reliability = call neighborTable.get(neighborID);
+
+			/*
+			 * Reduce the neighbor's reliability as if it didn't respond to this
+			 * ping. If the neighbor does awk, then add the missing score back.
+			 *
+			 * reliability *= 0.99, but using an imul then right shift
+			 */
+			reliability = (uint16_t)(((uint32_t)reliability * RELIABILITY_SCORE_DECAY) >> 16);
+
+			if (reliability < RELIABILITY_SCORE_FORGET_THRESHOLD)
+			{
+				// forget nodes that are haven't replied in ages
+				call neighborTable.remove(neighborID);
+			}
+			else
+			{
+				// update reliability score of reasonably reliable neighbors
+				call neighborTable.insert(neighborID, reliability);
+			}
 		}
 	}
 
@@ -217,45 +204,33 @@ implementation
 	{
 		// LinkState Advertisement to flood out
 		LinkState lsa;
-		uint16_t neighborCount;
-		uint16_t *neighborIDs;
-		uint16_t i = 0;
+		uint16_t neighborCount = call neighborTable.size();
+		uint16_t *neighborIDs = call neighborTable.getKeys();
+		uint16_t i;
 		uint8_t count = 0;
-		uint16_t reliability;
-		uint16_t score;
-
-		neighborCount = call neighborTable.size();
-		neighborIDs = call neighborTable.getKeys();
+		// uint16_t reliability;
+		// uint16_t score;
 
 		for (i = 0; i < neighborCount; ++i)
 		{
 			uint16_t neighborID = neighborIDs[i];
 
-			if (TOS_NODE_ID > neighborID)
-			{
-				/* 				
-				 * only advertise nodes with a larger node ID so every link
-				 * is mentioned in only a single LSA packet.
-				 */
-				continue;
-			}
-
-			reliability = call neighborTable.get(neighborID);
-			score = encodeReliability(reliability);
+			// reliability = call neighborTable.get(neighborID);
+			// score = encodeReliability(reliability);
 
 			// if a node stops replying for 7 seconds, then don't list it
-			if (score < 8)
-			{
-				if (count >= 8)
+			// if (score < 8)
+			// {
+				if (count >= 6)
 				{
-					dbg(NEIGHBOR_CHANNEL, "node has more than 8 live neighbors, so returning only first 8 \n", count);
+					dbg(NEIGHBOR_CHANNEL, "node has more than 6 live neighbors, so returning only first 8 \n", count);
 					break;
 				}
 
 				lsa.neighborIDs[count] = neighborID;
-				lsa.reliability |= score << (count * 3);
+				// lsa.reliability |= score << (count * 3);
 				count++;
-			}
+			// }
 		}
 
 		// record how many of the entries we filled out
@@ -263,60 +238,91 @@ implementation
 		return lsa;
 	}
 
+	command uint8_t NeighborDiscovery.getNeighborCount()
+	{
+		return call neighborTable.size();
+	}
+
+	command uint16_t* NeighborDiscovery.getNeighborIDs()
+	{
+		return call neighborTable.getKeys();
+	}
+
 	command void NeighborDiscovery.start()
 	{
-		dbg(NEIGHBOR_CHANNEL, "Starting Neighbor Discovery \n");
+		// dbg(NEIGHBOR_CHANNEL, "Starting Neighbor Discovery \n");
 		call neighborTable.reset();
 		call neighborDiscoveryTimer.startPeriodic(NEIGHBOR_DISCOVERY_DELAY_MS);
 	}
 
 	command void NeighborDiscovery.print()
 	{
-		uint16_t neighborCount;
-		uint16_t *neighborIDs;
-		uint16_t i = 0;
-		dbg(NEIGHBOR_CHANNEL, "Printing neighbors of %u:\n", TOS_NODE_ID);
+		uint16_t neighborCount = call neighborTable.size();
+		uint16_t *IDs = call neighborTable.getKeys();
 
-		neighborCount = call neighborTable.size();
-		neighborIDs = call neighborTable.getKeys();
+		// The limit on the LSA packet size means every node can only have 8 neighbors
+		// If this was a higher-level language, I'd just print a list of IDs
 
-		for (i = 0; i < neighborCount; ++i)
-		{
-			uint16_t neighborID = neighborIDs[i];
-
-			uint16_t reliability = call neighborTable.get(neighborID);
-			uint8_t percentage = ((uint32_t)reliability * 1000) >> 16;
-
-			dbg(NEIGHBOR_CHANNEL, "Node %u - reliability %3u.%u:\n", TOS_NODE_ID, percentage / 10, percentage % 10);
+		if (neighborCount == 8) {
+			dbg(NEIGHBOR_CHANNEL, "Neighbors: [%u, %u, %u, %u, %u, %u, %u, %u]\n", IDs[0], IDs[1], IDs[2], IDs[3], IDs[4], IDs[5], IDs[6], IDs[7]);
+		} else if (neighborCount == 7) {
+			dbg(NEIGHBOR_CHANNEL, "Neighbors: [%u, %u, %u, %u, %u, %u, %u]\n", IDs[0], IDs[1], IDs[2], IDs[3], IDs[4], IDs[5], IDs[6]);
+		} else if (neighborCount == 6) {
+			dbg(NEIGHBOR_CHANNEL, "Neighbors: [%u, %u, %u, %u, %u, %u]\n", IDs[0], IDs[1], IDs[2], IDs[3], IDs[4], IDs[5]);
+		} else if (neighborCount == 5) {
+			dbg(NEIGHBOR_CHANNEL, "Neighbors: [%u, %u, %u, %u, %u]\n", IDs[0], IDs[1], IDs[2], IDs[3], IDs[4]);
+		} else if (neighborCount == 4) {
+			dbg(NEIGHBOR_CHANNEL, "Neighbors: [%u, %u, %u, %u]\n", IDs[0], IDs[1], IDs[2], IDs[3]);
+		} else if (neighborCount == 3) {
+			dbg(NEIGHBOR_CHANNEL, "Neighbors: [%u, %u, %u]\n", IDs[0], IDs[1], IDs[2]);
+		} else if (neighborCount == 2) {
+			dbg(NEIGHBOR_CHANNEL, "Neighbors: [%u, %u]\n", IDs[0], IDs[1]);
+		} else if (neighborCount == 1) {
+			dbg(NEIGHBOR_CHANNEL, "Neighbors: [%u]\n", IDs[0]);
+		} else {
+			dbg(NEIGHBOR_CHANNEL, "Neighbors: []\n");
 		}
 	}
 
 	event void neighborDiscoveryTimer.fired()
 	{
+		error_t error;
+		// dbg(NEIGHBOR_CHANNEL, "Sending neighbor broadcast\n");
 
-		dbg(NEIGHBOR_CHANNEL, "Sending Neighbor Packet\n");
+		error = send_pack(TOS_NODE_ID, AM_BROADCAST_ADDR, 0, PROTOCOL_NEIGHBOR_DISCOVERY, neighborDiscoverySeqNum++);
 
-		send_pack(TOS_NODE_ID, AM_BROADCAST_ADDR, 0, PROTOCOL_NEIGHBOR_DISCOVERY, neighborDiscoverySeqNum++);
+		if (error != SUCCESS)
+		{
+			dbg(NEIGHBOR_CHANNEL, "Failed to send neighbor broadcast\n");
+		}
+		
 		ageNeighbors();
 	}
 
 	command message_t *NeighborDiscovery.receive(message_t * myMsg, void *payload, uint8_t len)
 	{
 		pack *msg = (pack *)payload;
-		dbg(NEIGHBOR_CHANNEL, "NeighborDiscovery got Packet\n");
 
 		if (msg->dest == AM_BROADCAST_ADDR)
 		{
-			send_pack(TOS_NODE_ID, msg->src, 0, PROTOCOL_NEIGHBOR_DISCOVERY, neighborDiscoverySeqNum++);
+			error_t error;
+			// dbg(NEIGHBOR_CHANNEL, "Received neighbor ping from node %u\n", msg->src);
+			error = send_pack(TOS_NODE_ID, msg->src, 0, PROTOCOL_NEIGHBOR_DISCOVERY, neighborDiscoverySeqNum++);
+
+			if (error != SUCCESS)
+			{
+				dbg(NEIGHBOR_CHANNEL, "Failed to send neighbor broadcast awk to node %u\n",  msg->src);
+			}
 		}
 		if (msg->dest == TOS_NODE_ID)
 		{
+			// dbg(NEIGHBOR_CHANNEL, "Received neighbor pingreply from node %u\n", msg->src);
 			rejuvenateNeighbor(msg->src);
 		}
 		return myMsg;
 	}
 
-	void send_pack(uint16_t src, uint16_t dest, uint8_t TTL, uint8_t protocol, uint16_t seq)
+	error_t send_pack(uint16_t src, uint16_t dest, uint8_t TTL, uint8_t protocol, uint16_t seq)
 	{
 		pack packet;
 		packet.src = src;
@@ -324,8 +330,9 @@ implementation
 		packet.TTL = TTL;
 		packet.seq = seq;
 		packet.protocol = protocol;
+		packet.link_src = TOS_NODE_ID;
 
 		//   dbg(GENERAL_CHANNEL, "Sending{dest=%u,seq=%u,TTL=%u}\n", dest, seq, TTL);
-		call Sender.send(packet, AM_BROADCAST_ADDR);
+		return call Sender.send(packet, dest);
 	}
 }

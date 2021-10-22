@@ -40,7 +40,7 @@ implementation{
             // Change it to our type.
             msg = (CommandMsg*) payload;
 
-            dbg(COMMAND_CHANNEL, "A Command has been Issued.\n");
+            // dbg(COMMAND_CHANNEL, "A Command has been Issued.\n");
             buff = (uint8_t*) msg->payload;
             commandID = msg->id;
 
@@ -54,7 +54,7 @@ implementation{
                 break;
 
             case CMD_NEIGHBOR_DUMP:
-                dbg(COMMAND_CHANNEL, "Command Type: Neighbor Dump\n");
+                // dbg(COMMAND_CHANNEL, "Command Type: Neighbor Dump\n");
                 signal CommandHandler.printNeighbors();
                 break;
 

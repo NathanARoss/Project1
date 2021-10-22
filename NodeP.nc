@@ -40,9 +40,9 @@ implementation{
 
    event void AMControl.startDone(error_t err){
       if(err == SUCCESS){
-         dbg(GENERAL_CHANNEL, "Radio On\n");
+         // dbg(GENERAL_CHANNEL, "Radio On\n");
 
-         call RoutingTable.start();
+         call Forwarding.start();
       }else{
          //Retry until successful
          call AMControl.start();
@@ -57,24 +57,24 @@ implementation{
        * wouldn't have given us this packet
        */
 
-      dbg(GENERAL_CHANNEL, "Packet Received\n");
+      // dbg(GENERAL_CHANNEL, "Packet Received\n");
       if(len==sizeof(pack)){
-         pack* myMsg=(pack*) payload;
-         dbg(GENERAL_CHANNEL, "Package Payload: %s\n", myMsg->payload);
+         pack* packet=(pack*) payload;
+         // dbg(GENERAL_CHANNEL, "Package Payload: %s\n", packet->payload);
 
-         if (myMsg->protocol == PROTOCOL_PING)
+         if (packet->protocol == PROTOCOL_PING)
 			{
-            dbg(GENERAL_CHANNEL, "Sending PINGREPLY to node %u w/ seq %u \n", myMsg->dest, ping_seq_num);
-            send_pack(TOS_NODE_ID,  myMsg->dest, MAX_TTL, PROTOCOL_PINGREPLY, ping_seq_num, NULL, 0);
+            dbg(GENERAL_CHANNEL, "Sending PINGREPLY to node %u w/ seq %u \n", packet->src, ping_seq_num);
+            send_pack(TOS_NODE_ID,  packet->src, MAX_TTL, PROTOCOL_PINGREPLY, ping_seq_num, NULL, 0);
             ++ping_seq_num;
 			}
-         else if (myMsg->protocol == PROTOCOL_PINGREPLY)
+         else if (packet->protocol == PROTOCOL_PINGREPLY)
 			{
-				dbg(GENERAL_CHANNEL, "Got PingReply\n");
+				dbg(GENERAL_CHANNEL, "Got PINGREPLY back from node %u\n", packet->src);
 			}
 			else
 			{
-            dbg(GENERAL_CHANNEL, "Unexpected protocol %u\n", myMsg->protocol);
+            dbg(GENERAL_CHANNEL, "Unexpected protocol %u\n", packet->protocol);
 			}
 
          return msg;
@@ -92,7 +92,7 @@ implementation{
 
    event void CommandHandler.printNeighbors()
    {
-      dbg(GENERAL_CHANNEL, "CommandHandler.printNeighbors() \n");
+      // dbg(GENERAL_CHANNEL, "CommandHandler.printNeighbors() \n");
       call NeighborDiscovery.print();
    }
 
@@ -122,6 +122,7 @@ implementation{
       packet.TTL = TTL;
       packet.seq = seq;
       packet.protocol = protocol;
+      packet.link_src = TOS_NODE_ID;
 
       if (length > sizeof(packet.payload))
       {
@@ -136,6 +137,6 @@ implementation{
       }
 
       // dbg(GENERAL_CHANNEL, "Sending{dest=%u,src=%u,seq=%u,TTL=%u,protocol=%u}\n", dest, src, seq, TTL, protocol);
-      call Forwarding.send(packet, AM_BROADCAST_ADDR);
+      call Forwarding.send(&packet);
    }
 }

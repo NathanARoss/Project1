@@ -10,7 +10,7 @@
 #include "channels.h"
 
 enum{
-	PACKET_HEADER_LENGTH = 8,
+	PACKET_HEADER_LENGTH = 12,
 	PACKET_MAX_PAYLOAD_SIZE = 28 - PACKET_HEADER_LENGTH,
 	MAX_TTL = 64
 };
@@ -22,6 +22,8 @@ typedef nx_struct pack{
 	nx_uint16_t seq;		//Sequence Number
 	nx_uint8_t TTL;		//Time to Live
 	nx_uint8_t protocol;
+	nx_uint16_t link_src; // node ID that is forwarding this message
+	nx_uint16_t padding;
 	nx_uint8_t payload[PACKET_MAX_PAYLOAD_SIZE];
 }pack;
 

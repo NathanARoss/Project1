@@ -10,6 +10,9 @@ implementation{
     components new HashmapC(destination_node, 1024) as RoutingTableC;
     RoutingTableP.routingTable -> RoutingTableC;
 
+    components new HashmapC(destination_node, 1024) as UnvisitedNodesC;
+    RoutingTableP.unvisitedNodes -> UnvisitedNodesC;
+
 	components NeighborDiscoveryC;
 	RoutingTableP.NeighborDiscovery -> NeighborDiscoveryC;
 	

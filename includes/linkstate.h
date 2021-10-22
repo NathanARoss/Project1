@@ -17,7 +17,7 @@ typedef nx_struct {
      * 3-bit reliability scores per neighbor are stored separately from each
      * entry to allow the neighbor node IDs to be the full 2^16 range of values,
      * to be memory access aligned, and to keep the list compact. This entire
-     * struct must fit within the 20 byte payload allowed by the pack struct.
+     * struct must fit within the 16 byte payload allowed by the pack struct.
      *
      * The first neighbor in the list has its cost stored in the lowest 3 bits,
      * the second neighbor has the next-highest 3 bits, and so on.
@@ -42,14 +42,14 @@ typedef nx_struct {
     nx_uint32_t reliability : 24;
 
     /// reserved for future use
-    nx_uint8_t reserved : 5;
+    nx_uint32_t reserved : 5;
 
-    /// count of neighbors in this list (zero-based) [1, 8]
-    nx_uint8_t count : 3;
+    /// count of neighbors in this list (zero-based) [1, 6]
+    nx_uint32_t count : 3;
 
-    nx_uint16_t neighborIDs[8];
+    nx_uint16_t neighborIDs[6];
 } LinkState;
 
-// sizeof(LinkState) == PACKET_MAX_PAYLOAD_SIZE == 20
+// sizeof(LinkState) == PACKET_MAX_PAYLOAD_SIZE == 16
 
 #endif
