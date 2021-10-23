@@ -49,7 +49,6 @@ implementation
 
 		call NeighborDiscovery.start();
 
-		// if (TOS_NODE_ID == 1)
 		call rebuildRoutingTableTimer.startPeriodic(ROUTING_TABLE_REBUILD_DELAY);
 	}
 
@@ -77,6 +76,7 @@ implementation
 		LinkState lsa = call NeighborDiscovery.getOwnLinkstate();
 		uint8_t i;
 		error_t error;
+		uint16_t fail_safe;
 		uint16_t neighborCount = call NeighborDiscovery.getNeighborCount();
 		uint16_t *neighborIDs = call NeighborDiscovery.getNeighborIDs();
 		uint16_t currentNodeId;
@@ -145,19 +145,21 @@ implementation
 
 		// remove ourselves from the unvisited list
 		call unvisitedNodes.remove(TOS_NODE_ID);
+
 		/* 		
 		 * Calculate the non-trivial paths using Dijkstra's algorithm
 
 		 * we can't start the algorithm from the self node because we need
 		 * access to an accurate nextHop field
  		 */
-		while (call unvisitedNodes.size() > 0)
+		fail_safe = 1000;
+		while (call unvisitedNodes.size() > 0 && fail_safe-- > 0)
 		{
 			uint16_t unvisitedNodeCount;
 			uint16_t *unvisitedNodeIDs;
 			uint8_t leastCost = ~0;
 
-			for (i = 0; i < receivedLinks; ++i)
+			for (i = 0; i < receivedLinks && fail_safe-- > 0; ++i)
 			{
 				// neighbor of currentNode
 				uint16_t neighborID;
@@ -199,7 +201,7 @@ implementation
 			// if no nodes remain, then the while loop will terminate
 			unvisitedNodeCount = call unvisitedNodes.size();
 			unvisitedNodeIDs = call unvisitedNodes.getKeys();
-			for (i = 0; i < unvisitedNodeCount; ++i)
+			for (i = 0; i < unvisitedNodeCount && fail_safe-- > 0; ++i)
 			{
 				uint16_t nodeID = unvisitedNodeIDs[i];
 				destination_node next_node = call unvisitedNodes.get(nodeID);
@@ -209,6 +211,11 @@ implementation
 					currentNodeId = nodeID;
 				}
 			}
+		}
+
+		if (fail_safe == 0)
+		{
+			dbg(GENERAL_CHANNEL, "Unvisited nodes: %u \n", call unvisitedNodes.size());
 		}
 
 		receivedLinks = 0;

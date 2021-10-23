@@ -208,19 +208,17 @@ implementation
 		uint16_t *neighborIDs = call neighborTable.getKeys();
 		uint16_t i;
 		uint8_t count = 0;
-		// uint16_t reliability;
-		// uint16_t score;
 
 		for (i = 0; i < neighborCount; ++i)
 		{
 			uint16_t neighborID = neighborIDs[i];
 
-			// reliability = call neighborTable.get(neighborID);
-			// score = encodeReliability(reliability);
+			uint16_t reliability = call neighborTable.get(neighborID);
+			uint16_t score = encodeReliability(reliability);
 
 			// if a node stops replying for 7 seconds, then don't list it
-			// if (score < 8)
-			// {
+			if (score < 8)
+			{
 				if (count >= 6)
 				{
 					dbg(NEIGHBOR_CHANNEL, "node has more than 6 live neighbors, so returning only first 8 \n", count);
@@ -230,7 +228,7 @@ implementation
 				lsa.neighborIDs[count] = neighborID;
 				// lsa.reliability |= score << (count * 3);
 				count++;
-			// }
+			}
 		}
 
 		// record how many of the entries we filled out

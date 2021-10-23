@@ -18,9 +18,9 @@ def main():
     # wait for neighbor discovery to stabilize
     s.runTime(120);
 
-    for node in range(1, s.numMote + 1):
-        s.routeDMP(node);
-        s.runTime(10);
+    # for node in s.moteids:
+    s.routeDMP(4);
+    s.runTime(10);
 
 if __name__ == '__main__':
     main()

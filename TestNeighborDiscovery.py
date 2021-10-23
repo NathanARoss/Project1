@@ -8,7 +8,8 @@ def main():
     s.runTime(1);
 
     # Load the the layout of the network.
-    s.loadTopo("long_line.topo");
+    # s.loadTopo("long_line.topo");
+    s.loadTopo("project1.topo");
 
     # Add a noise model to all of the motes.
     s.loadNoise("no_noise.txt");
@@ -24,7 +25,7 @@ def main():
     # Wait for neighbor discovery to stabilize
     s.runTime(60);
 
-    for node in range(1, s.numMote + 1):
+    for node in s.moteids:
         s.neighborDMP(node);
         s.runTime(10);
 
