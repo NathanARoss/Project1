@@ -4,7 +4,7 @@
 
 enum
 {
-	ROUTING_TABLE_REBUILD_DELAY = 5000,
+	ROUTING_TABLE_REBUILD_DELAY = 10000,
 	MAX_LINKS_IN_NETWORK = 1024,
 };
 
@@ -49,7 +49,7 @@ implementation
 
 		call NeighborDiscovery.start();
 
-		call rebuildRoutingTableTimer.startPeriodic(ROUTING_TABLE_REBUILD_DELAY);
+		call rebuildRoutingTableTimer.startPeriodicAt(TOS_NODE_ID * (ROUTING_TABLE_REBUILD_DELAY / 100), ROUTING_TABLE_REBUILD_DELAY);
 	}
 
 	command uint16_t RoutingTable.getNextHop(uint16_t dest)
@@ -74,7 +74,7 @@ implementation
 	event void rebuildRoutingTableTimer.fired()
 	{
 		LinkState lsa = call NeighborDiscovery.getOwnLinkstate();
-		uint8_t i;
+		uint16_t i;
 		error_t error;
 		uint16_t fail_safe;
 		uint16_t neighborCount = call NeighborDiscovery.getNeighborCount();
@@ -89,7 +89,6 @@ implementation
 		packet.TTL = MAX_TTL;
 		packet.seq = routingTableFloodSeq++;
 		packet.protocol = PROTOCOL_LINKSTATE;
-		packet.link_src = TOS_NODE_ID;
 
 		memcpy(packet.payload, &lsa, sizeof(lsa));
 
@@ -103,9 +102,9 @@ implementation
 			}
 		}
 
-		if (routingTableFloodSeq % 4 != 0)
+		if (routingTableFloodSeq < 4 || routingTableFloodSeq % 2 != 0)
 		{
-			// only calculate the routing table every 4th LSA timer fire
+			// only calculate the routing table every other LSA timer fire
 			return;
 		}
 
@@ -117,6 +116,7 @@ implementation
 		{
 			destination_node unvisited;
 			unvisited.cost = ~0;
+
 			call unvisitedNodes.insert(network_links[i].dest, unvisited);
 			call unvisitedNodes.insert(network_links[i].src, unvisited);
 		}
@@ -209,7 +209,14 @@ implementation
 				{
 					currentNode = next_node;
 					currentNodeId = nodeID;
+					leastCost = next_node.cost;
 				}
+			}
+
+			if (leastCost == ~0)
+			{
+				dbg(GENERAL_CHANNEL, "Failed to find any reachable nodes in a list of size: %u\n", call unvisitedNodes.size());
+				break;
 			}
 		}
 
@@ -242,12 +249,6 @@ implementation
 			if (receivedLinks >= MAX_LINKS_IN_NETWORK) {
 				dbg(ROUTING_CHANNEL, "Exceeded allocated space for network links\n");
 				break;
-			}
-
-			if (lsa->neighborIDs[i] == TOS_NODE_ID)
-			{
-				// ignore our neighbor telling us about ourselves
-				continue;
 			}
 
 			lowID = lsa->neighborIDs[i];

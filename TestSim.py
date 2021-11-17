@@ -13,6 +13,8 @@ class TestSim:
     CMD_PING = 0
     CMD_NEIGHBOR_DUMP = 1
     CMD_ROUTE_DUMP=3
+    CMD_INITIATE_TCP_CONNECTION=7
+    CMD_CLOSE_TCP_CONNECTION=8
 
     # CHANNELS - see includes/channels.h
     COMMAND_CHANNEL="command";
@@ -119,6 +121,12 @@ class TestSim:
     def ping(self, source, dest, msg):
         self.sendCMD(self.CMD_PING, source, "{0}{1}".format(chr(dest),msg));
 
+    def initiateTcp(self, source, dest):
+        self.sendCMD(self.CMD_INITIATE_TCP_CONNECTION, source, "{0}".format(chr(dest)));
+
+    def killTcp(self, source, dest):
+        self.sendCMD(self.CMD_CLOSE_TCP_CONNECTION, source, "{0}".format(chr(dest)));
+
     def neighborDMP(self, destination):
         self.sendCMD(self.CMD_NEIGHBOR_DUMP, destination, "neighbor command");
 
@@ -145,7 +153,7 @@ def main():
     s.addChannel(s.NEIGHBOR_CHANNEL);
 
     # wait for neighbor discovery to stabilize
-    s.runTime(60);
+    s.runTime(1020);
 
     # s.ping(1, s.numMote, "Hello, World");
     # s.runTime(10);
