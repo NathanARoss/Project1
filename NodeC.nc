@@ -37,5 +37,4 @@ implementation {
 
 	components ForwardingC;
 	NodeP.Forwarding -> ForwardingC.Forwarding;
-
 }

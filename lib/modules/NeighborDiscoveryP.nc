@@ -6,7 +6,7 @@
 enum
 {
 	/// ping our neighbors once a second to make sure they are still there
-	NEIGHBOR_DISCOVERY_DELAY_MS = 1000,
+	NEIGHBOR_DISCOVERY_DELAY_MS = 1500,
 
 	/**
 	 * Weighted average of link reliability for neighbors. The most recent ping
@@ -23,7 +23,7 @@ enum
 	RELIABILITY_SCORE_DECAY = 0xF000,
 
 	/**
-	 * Score value added back when a neighbor node sends back an awk
+	 * Score value added back when a neighbor node sends back an ack
 	 *
 	 * (1 - alpha), since reliability *= alpha on every discovery iteration
 	 */
@@ -31,7 +31,7 @@ enum
 
 	/*
 	 * Neighbors lose a ping's worth of reliability every second, so give
-	 * neighbors the benefit of the doubt that it'll awk the most recent ping.
+	 * neighbors the benefit of the doubt that it'll ack the most recent ping.
 	 *
 	 * Reliability scores corresponding to N missed pings in a row.
 	 */
@@ -47,7 +47,7 @@ enum
 	/*
 	 * Initial reliability score when a neighbor is first found.
 	 *
-	 * A neighbor shouldn't be included in LSA packets until it has awked
+	 * A neighbor shouldn't be included in LSA packets until it has acked
 	 * the last 5 neighbor pings. It's not considered perfectly reliable until
 	 * ~35 pings.
 	 *
@@ -117,7 +117,7 @@ implementation
 
 			/*
 			 * Reduce the neighbor's reliability as if it didn't respond to this
-			 * ping. If the neighbor does awk, then add the missing score back.
+			 * ping. If the neighbor does ack, then add the missing score back.
 			 *
 			 * reliability *= 0.99, but using an imul then right shift
 			 */
@@ -250,7 +250,7 @@ implementation
 	{
 		// dbg(NEIGHBOR_CHANNEL, "Starting Neighbor Discovery \n");
 		call neighborTable.reset();
-		call neighborDiscoveryTimer.startPeriodic(NEIGHBOR_DISCOVERY_DELAY_MS);
+		call neighborDiscoveryTimer.startPeriodicAt(TOS_NODE_ID * 10, NEIGHBOR_DISCOVERY_DELAY_MS);
 	}
 
 	command void NeighborDiscovery.print()
@@ -309,7 +309,7 @@ implementation
 
 			if (error != SUCCESS)
 			{
-				dbg(NEIGHBOR_CHANNEL, "Failed to send neighbor broadcast awk to node %u\n",  msg->src);
+				dbg(NEIGHBOR_CHANNEL, "Failed to send neighbor broadcast ack to node %u\n", msg->src);
 			}
 		}
 		if (msg->dest == TOS_NODE_ID)
@@ -328,7 +328,6 @@ implementation
 		packet.TTL = TTL;
 		packet.seq = seq;
 		packet.protocol = protocol;
-		packet.link_src = TOS_NODE_ID;
 
 		//   dbg(GENERAL_CHANNEL, "Sending{dest=%u,seq=%u,TTL=%u}\n", dest, seq, TTL);
 		return call Sender.send(packet, dest);

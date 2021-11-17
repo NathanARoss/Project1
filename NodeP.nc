@@ -27,10 +27,8 @@ module NodeP{
 }
 
 implementation{
-   uint16_t ping_seq_num = 0;
-
-   // Prototypes
-   void send_pack(uint16_t src, uint16_t dest, uint8_t TTL, uint8_t protocol, uint16_t seq, uint8_t * payload, uint8_t length);
+   uint16_t ping_seq_num = 0;   // Prototypes
+   void send_pack(uint16_t dest, uint8_t TTL, uint8_t protocol, uint16_t seq, uint8_t * payload, uint8_t length);
 
    event void Boot.booted(){
       call AMControl.start();
@@ -65,7 +63,7 @@ implementation{
          if (packet->protocol == PROTOCOL_PING)
 			{
             dbg(GENERAL_CHANNEL, "Sending PINGREPLY to node %u w/ seq %u \n", packet->src, ping_seq_num);
-            send_pack(TOS_NODE_ID,  packet->src, MAX_TTL, PROTOCOL_PINGREPLY, ping_seq_num, NULL, 0);
+            send_pack(packet->src, MAX_TTL, PROTOCOL_PINGREPLY, ping_seq_num, NULL, 0);
             ++ping_seq_num;
 			}
          else if (packet->protocol == PROTOCOL_PINGREPLY)
@@ -83,10 +81,9 @@ implementation{
       return msg;
    }
 
-
    event void CommandHandler.ping(uint16_t destination, uint8_t *payload){
       dbg(GENERAL_CHANNEL, "Sending PING to node %u w/ seq %u \n", destination, ping_seq_num);
-      send_pack(TOS_NODE_ID, destination, MAX_TTL, PROTOCOL_PING, ping_seq_num, payload, PACKET_MAX_PAYLOAD_SIZE);
+      send_pack(destination, MAX_TTL, PROTOCOL_PING, ping_seq_num, payload, PACKET_MAX_PAYLOAD_SIZE);
       ++ping_seq_num;
    }
 
@@ -114,15 +111,14 @@ implementation{
 
    event void CommandHandler.setAppClient(){}
 
-   void send_pack(uint16_t src, uint16_t dest, uint8_t TTL, uint8_t protocol, uint16_t seq, uint8_t * payload, uint8_t length)
+   void send_pack(uint16_t dest, uint8_t TTL, uint8_t protocol, uint16_t seq, uint8_t * payload, uint8_t length)
    {
       pack packet;
-      packet.src = src;
+      packet.src = TOS_NODE_ID;
       packet.dest = dest;
-      packet.TTL = TTL;
       packet.seq = seq;
+      packet.TTL = TTL;
       packet.protocol = protocol;
-      packet.link_src = TOS_NODE_ID;
 
       if (length > sizeof(packet.payload))
       {
